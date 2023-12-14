@@ -1,7 +1,8 @@
+# File contains models of master tables & child tables
+
 from core.config import Base
 import datetime
 
-from typing import List
 from sqlalchemy import String, Integer, Column, ForeignKey, Date
 from sqlalchemy.orm import relationship
 
@@ -11,8 +12,10 @@ class Course(Base):
 
     course_id = Column(Integer, autoincrement=True, primary_key=True)
     course_name = Column(String, nullable=False, unique=True)
+    course_status = Column(String, nullable=False, default="Active")
 
-    students = relationship("Student", secondary="studentcourse", back_populates="courses")
+    students = relationship("Student", secondary="coursestudent", back_populates="courses")
+    teachers = relationship("Teacher", secondary="courseteacher", back_populates="assigned_courses")
 
 
 class Student(Base):
@@ -22,15 +25,9 @@ class Student(Base):
     student_name = Column(String, nullable=False)
     student_email = Column(String, nullable=False, unique=True)
     year_enrolled = Column(Date, default=datetime.datetime.year)
+    student_status = Column(String, nullable=False, default="Active")
 
-    courses = relationship("Course", secondary="studentcourse", back_populates="students")
-
-
-class StudentCourse(Base):
-    __tablename__ = "studentcourse"
-
-    student_id = Column(Integer, ForeignKey("student.student_id"), primary_key=True)
-    course_id = Column(Integer, ForeignKey("course.course_id"), primary_key=True)
+    courses = relationship("Course", secondary="coursestudent", back_populates="students")
 
 
 class Teacher(Base):
@@ -39,10 +36,20 @@ class Teacher(Base):
     teacher_id = Column(Integer, autoincrement=True, primary_key=True)
     teacher_name = Column(String, nullable=False)
     teacher_email = Column(String, nullable=False, unique=True)
+    teacher_status = Column(String, nullable=False, default="Active")
+
+    assigned_courses = relationship("Course", secondary="courseteacher", back_populates="teachers")
 
 
-class TeacherCourse(Base):
-    __tablename__ = "teachercourse"
+class CourseTeacher(Base):
+    __tablename__ = "courseteacher"
 
     teacher_id = Column(Integer, ForeignKey("teacher.teacher_id"), primary_key=True)
+    course_id = Column(Integer, ForeignKey("course.course_id"), primary_key=True)
+
+
+class CourseStudent(Base):
+    __tablename__ = "coursestudent"
+
+    student_id = Column(Integer, ForeignKey("student.student_id"), primary_key=True)
     course_id = Column(Integer, ForeignKey("course.course_id"), primary_key=True)

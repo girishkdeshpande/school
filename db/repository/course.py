@@ -1,12 +1,10 @@
 from sqlalchemy.orm import Session
 
-from schemas.schema import CourseBase, CourseSchema
+from schemas.schema import NewCourse
 from db.models.model import Course
 
-from fastapi.encoders import jsonable_encoder
 
-
-def create_new_course(course: CourseBase, db: Session):
+def add_course(course: NewCourse, db: Session):
     new_course = Course(course_name=course.course_name)
     db.add(new_course)
     db.commit()
@@ -46,3 +44,8 @@ def get_course(cid: int, db: Session):
 def get_courses(db: Session, skip: int = 0, limit: int = 100):
     all_courses = db.query(Course).offset(skip).limit(limit).all()
     return all_courses
+
+
+def delete_course(cid: int, db: Session):
+    single_course = db.query(Course).filter(Course.course_id == cid).first()
+    return single_course
