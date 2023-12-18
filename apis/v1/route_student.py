@@ -26,10 +26,17 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
                                 status_code=status.HTTP_400_BAD_REQUEST)
 
         # Checking student name for special characters
-        logger.info("Student: Checking whether student name has special characters")
+        logger.info("Checking whether student name has special characters")
         if special_str.search(student['student_name']):
             logger.error("Student name has special characters")
             return JSONResponse({"Message": "Student name field should have characters", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+        # Checking student for unique email
+        logger.info("Checking for unique email address")
+        if db.query(Student).filter(Student.student_email.ilike(student['student_email'])):
+            logger.error("Email id already exists")
+            return JSONResponse({"Message": "Email address already exists", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Creating instance for new student

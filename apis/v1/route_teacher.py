@@ -22,7 +22,7 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
         logger.info("Checking whether teacher name is None")
         if teacher['teacher_name'] == "":
             logger.error("Teacher name is None")
-            return JSONResponse({"Message": "All fields except assigned_courses are mandatory", "Status": 400},
+            return JSONResponse({"Message": "All fields except assign_courses are mandatory", "Status": 400},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Checking teacher name for special characters
@@ -31,12 +31,19 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
             return JSONResponse({"Message": "Teacher name field should have characters", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
+        # Checking teacher for unique email
+        logger.info("Checking for unique email address")
+        if db.query(Teacher).filter(Teacher.teacher_email.ilike(teacher['teacher_email'])).first():
+            logger.error(f"Email id already exists")
+            return JSONResponse({"Message": "Email address already exists", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
         # Creating instance for new teacher
         logger.info("Creating instance of teacher to add in database")
         add_teacher = Teacher(
-                    teacher_name=teacher['teacher_name'].title(),
-                    teacher_email=teacher['teacher_email']
-                    )
+            teacher_name=teacher['teacher_name'].title(),
+            teacher_email=teacher['teacher_email']
+            )
         # Adding instance to database
         logger.info("Adding new teacher into database")
         db.add(add_teacher)
@@ -56,8 +63,8 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
 
         logger.info("Teacher added successfully")
         return JSONResponse({
-            "Message": f"Teacher {teacher['student_name']} added successfully with courses {teacher['assigned_course']}",
-            "Status": 200}, status_code=status.HTTP_200_OK)
+                "Message": f"Teacher {teacher['teacher_name']} added successfully for courses {teacher['assign_course']}",
+                "Status": 200}, status_code=status.HTTP_200_OK)
     except Exception as e:
         logger.error(e)
         return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
@@ -69,7 +76,7 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
 def view_teacher(teacher_id: int, db: Session = Depends(get_db)):
     try:
         # Checking for teacher exists or not
-        logger.info(f"Checking for presence of teacher id {sid}")
+        logger.info(f"Checking for presence of teacher id {teacher_id}")
         single_teacher = db.query(Teacher).filter(Teacher.teacher_id == teacher_id).first()
         if single_teacher:
             logger.info(f"Teacher id {teacher_id} is present.Returned teacher details")
@@ -136,9 +143,11 @@ def remove_course(teacher_id: int, course_id: int, db: Session = Depends(get_db)
             return JSONResponse({"Message": f"{teacher_id} {course_id} Invalid Inout", "Status": 400},
                                 status_code=status.HTTP_400_BAD_REQUEST)
         else:
+
             # Checking for record with given teacher id & course id. Deleting if available.
             logger.info(f"Checking for record of student id {teacher_id} against course id {course_id}")
-            course = db.query(CourseTeacher).filter((CourseTeacher.teacher_id == teacher_id), (CourseTeacher.course_id == course_id)).first()
+            course = db.query(CourseTeacher).filter((CourseTeacher.teacher_id == teacher_id),
+                                                    (CourseTeacher.course_id == course_id)).first()
             if course:
                 db.delete(course)
                 db.commit()
@@ -184,12 +193,13 @@ def delete_teacher(tid: int, db: Session = Depends(get_db)):
 def update_teacher(teacher_id: int, update_data: UpdateTeacher, db: Session = Depends(get_db)):
     try:
         update_data = update_data.model_dump()
+
         # Checking for teacher exists & updating record if available
         logger.info(f"Checking for presence of teacher id {teacher_id}")
         teacher = db.query(Teacher).filter(Teacher.teacher_id == teacher_id).first()
         if teacher:
-            teacher['teacher_name'] = update_data['teacher_name'].title()
-            teacher['teacher_email'] = update_data['teacher_email']
+            teacher.teacher_name = update_data['teacher_name'].title()
+            teacher.teacher_email = update_data['teacher_email']
             db.add(teacher)
             db.commit()
             db.refresh(teacher)
