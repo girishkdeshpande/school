@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 import re
 import os
 from dotenv import load_dotenv
-
+import logging
 from pathlib import Path
 
 env_path = Path('.') / '.env'
@@ -48,3 +48,19 @@ def get_db():
 
 # Special string for checking special characters in string
 special_str = re.compile('[@_!#$%^&*()<>?\/}|{~:]')
+
+
+# Logger configuration
+def log_config():
+    logger = logging.getLogger('school')
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler('D:\school\logs\school.log', mode='w')
+    file_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+
+    return logger

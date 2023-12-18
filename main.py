@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from core.config import settings
+import logging.config
+from core.config import settings, log_config
 
 from db.session import engine
 from db.base import Base
@@ -15,6 +16,7 @@ def include_router(app):
 
 
 def start_app():
+    log_config()
     app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION)
     create_tables()
     include_router(app)

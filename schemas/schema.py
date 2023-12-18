@@ -9,8 +9,9 @@ class NewCourse(BaseModel):
     course_name: str = Field(max_length=40)
 
 
-class ShowCourse(NewCourse):
+class ShowCourse(BaseModel):
     course_id: int
+    course_name: str
 
     class ConfigDict:
         from_attributes = True
@@ -70,8 +71,6 @@ class UpdateStudent(BaseModel):
     student_name: Optional[str] = None
     student_email: Optional[EmailStr] = None
     year_enrolled: Optional[datetime.date] = None
-    course_enrolled: Optional[list] = []
-    update_course: Optional[list] = []
 
 
 class UpdateCourse(BaseModel):

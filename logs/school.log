@@ -1,0 +1,5 @@
+2023-12-18 20:55:10,557 - school - INFO - Checking whether course name is None or having special characters or already exists
+2023-12-18 20:55:10,634 - school - INFO - Creating instance for new course
+2023-12-18 20:55:10,650 - school - INFO - New Course added into database
+2023-12-18 20:56:39,598 - school - INFO - Checking course id exists or not
+2023-12-18 20:56:39,600 - school - INFO - 3 exists. Returning details
