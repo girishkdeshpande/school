@@ -3,7 +3,6 @@ import logging
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import or_
 
 from schemas.schema import CourseSchema, NewCourse, UpdateCourse
 from core.config import get_db, special_str
@@ -17,20 +16,16 @@ logger = logging.getLogger('school')
 @router.post("/course")
 def add_new_course(course: NewCourse, db: Session = Depends(get_db)):
     try:
-        # Checking input for empty, special characters and course name already exists
-        logger.info("Checking whether course name is None or having special characters or already exists")
         course = course.model_dump()
-        if course['course_name'] == "":
-            logger.error("Course name is None")
-            return JSONResponse({"Message": "Course name should not be empty", "Status": 400},
-                                status_code=status.HTTP_400_BAD_REQUEST)
 
-        elif special_str.search(course['course_name']):
+        # Checking for special characters and course name already exists
+        logger.info("Checking whether having special characters or already exists")
+        if special_str.search(course['course_name']):
             logger.error("Course name has special characters")
             return JSONResponse({"Message": "Course name should be alphanumeric", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
-        elif db.query(Course).filter(Course.course_name.ilike(course['course_name'])):
+        elif db.query(Course).filter(Course.course_name == course['course_name']).first():
             logger.error("Course Name already exists")
             return JSONResponse({"Message": "Course Name already exist", "Status": 409},
                                 status_code=status.HTTP_409_CONFLICT)
@@ -123,7 +118,7 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
         logger.info(f"Checking course id {course_id} exists or not")
         course = db.query(Course).filter(Course.course_id == course_id).first()
 
-        # Updating record
+        # Changing status to Inactive
         if course:
             course.course_status = "Inactive"
             db.add(course)
@@ -138,8 +133,8 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Updating master Course
@@ -147,6 +142,7 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
 def update_course(course_id: int, update_data: UpdateCourse, db: Session = Depends(get_db)):
     try:
         update_data = update_data.model_dump()
+
         # Checking availability of course for given course id
         logger.info(f"Checking course id {course_id} exists or not")
         course = db.query(Course).filter(Course.course_id == course_id).first()
@@ -166,5 +162,5 @@ def update_course(course_id: int, update_data: UpdateCourse, db: Session = Depen
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -2,11 +2,11 @@
 
 import datetime
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Union
 
 
 class NewCourse(BaseModel):
-    course_name: str = Field(max_length=40)
+    course_name: str = Field(min_length=2)
 
 
 class ShowCourse(BaseModel):
@@ -18,7 +18,7 @@ class ShowCourse(BaseModel):
 
 
 class NewStudent(BaseModel):
-    student_name: str = Field(max_length=40)
+    student_name: str = Field(min_length=3)
     student_email: EmailStr
     year_enrolled: datetime.date
     course_enrolled: list = []
@@ -26,7 +26,7 @@ class NewStudent(BaseModel):
 
 class ShowStudent(BaseModel):
     student_id: int
-    student_name: str = Field(max_length=40)
+    student_name: str
     student_email: EmailStr
     year_enrolled: datetime.date
 
@@ -35,7 +35,7 @@ class ShowStudent(BaseModel):
 
 
 class NewTeacher(BaseModel):
-    teacher_name: str = Field(max_length=40)
+    teacher_name: str = Field(min_length=3)
     teacher_email: EmailStr
     assign_course: list = []
 

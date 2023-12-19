@@ -5,7 +5,7 @@ from fastapi import Depends, status, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List
 
-from schemas.schema import StudentSchema, NewStudent, UpdateStudent
+from schemas.schema import StudentSchema, NewStudent, UpdateStudent, ShowStudent
 from core.config import get_db, special_str
 from db.models.model import Student, CourseStudent
 
@@ -17,13 +17,7 @@ logger = logging.getLogger('school')
 @router.post("/student")
 def new_student(student: NewStudent, db: Session = Depends(get_db)):
     try:
-        # Checking for input is not empty
-        logger.info("Checking whether student name is None")
         student = student.model_dump()
-        if student['student_name'] == "":
-            logger.error("Student name is None")
-            return JSONResponse({"Message": "All fields except course_enrolled are mandatory", "Status": 400},
-                                status_code=status.HTTP_400_BAD_REQUEST)
 
         # Checking student name for special characters
         logger.info("Checking whether student name has special characters")
@@ -34,9 +28,9 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
 
         # Checking student for unique email
         logger.info("Checking for unique email address")
-        if db.query(Student).filter(Student.student_email.ilike(student['student_email'])):
-            logger.error("Email id already exists")
-            return JSONResponse({"Message": "Email address already exists", "Status": 406},
+        if db.query(Student).filter(Student.student_email == student['student_email']).first():
+            logger.error(f"Email {student['student_email']} already exists")
+            return JSONResponse({"Message": f"Email address {student['student_email']} already exists", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Creating instance for new student
@@ -75,7 +69,7 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
 
 
 # View student by student id
-@router.get("/student/{student_id}", response_model=StudentSchema)
+@router.get("/student/{student_id}", response_model=ShowStudent)
 def view_student(sid: int, db: Session = Depends(get_db)):
     try:
         # Checking student id exists or not

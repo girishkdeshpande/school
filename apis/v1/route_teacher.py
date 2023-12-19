@@ -19,11 +19,6 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
     try:
         # Checking for input is not empty
         teacher = teacher.model_dump()
-        logger.info("Checking whether teacher name is None")
-        if teacher['teacher_name'] == "":
-            logger.error("Teacher name is None")
-            return JSONResponse({"Message": "All fields except assign_courses are mandatory", "Status": 400},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Checking teacher name for special characters
         logger.info("Checking whether teacher name has special characters")
@@ -33,7 +28,7 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
 
         # Checking teacher for unique email
         logger.info("Checking for unique email address")
-        if db.query(Teacher).filter(Teacher.teacher_email.ilike(teacher['teacher_email'])).first():
+        if db.query(Teacher).filter(Teacher.teacher_email == teacher['teacher_email']).first():
             logger.error(f"Email id already exists")
             return JSONResponse({"Message": "Email address already exists", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
@@ -67,8 +62,8 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
                 "Status": 200}, status_code=status.HTTP_200_OK)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # View teacher details by teacher id
@@ -87,8 +82,8 @@ def view_teacher(teacher_id: int, db: Session = Depends(get_db)):
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # View all teacher's details
@@ -107,8 +102,8 @@ def view_all_teachers(db: Session = Depends(get_db)):
                                 status_code=status.HTTP_204_NO_CONTENT)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.delete("/teacher/{teacher_id}")
@@ -129,8 +124,8 @@ def complete_delete_teacher(teacher_id: int, db: Session = Depends(get_db)):
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Disassign teacher from course
@@ -160,8 +155,8 @@ def remove_course(teacher_id: int, course_id: int, db: Session = Depends(get_db)
                                      "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.patch("/teacher/{teacher_id}")
@@ -184,8 +179,8 @@ def delete_teacher(tid: int, db: Session = Depends(get_db)):
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Update master record of teacher
@@ -212,5 +207,5 @@ def update_teacher(teacher_id: int, update_data: UpdateTeacher, db: Session = De
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
-                             "Status": 500}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JSONResponse({"Message": "An unexpected error occurred. Please try again later", "Status": 500},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
