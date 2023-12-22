@@ -1,8 +1,9 @@
 # File contains all schemas for Student, Course & Teacher
 
 import datetime
-from pydantic import BaseModel, Field, EmailStr, ValidationError, field_validator
-from typing import Optional, List, Union
+from pydantic import BaseModel, Field, EmailStr, ValidationError, field_validator, PositiveInt, model_validator
+from pydantic_core import PydanticCustomError
+from typing import Optional, List, Union, Any
 
 
 class NewCourse(BaseModel):
@@ -19,17 +20,12 @@ class ShowCourse(BaseModel):
 
 
 class UpdateCourse(BaseModel):
-    course_id: int = Field(gt=0)
-    course_name: str = Field(min_length=2)
-    '''@field_validator('course_name')
-    def length_gt_2(cls, course_length):
-        if course_length == "":
-            raise ValueError("empty field")
-        return course_length'''
+    course_id: PositiveInt = Field(..., gt=0)
+    course_name: str = Field(..., min_length=2, pattern="^[a-zA-Z0-9-' ]+$")
 
 
 class SingleCourse(BaseModel):
-    course_id: int = Field(gt=0)
+    course_id: PositiveInt
 
 
 class NewStudent(BaseModel):
@@ -112,11 +108,3 @@ class StudentSchema(ShowStudent):
 class CourseSchema(ShowCourse):
     students: List[ShowStudent]
     teachers: List[ShowTeacher]
-
-
-
-
-
-
-
-

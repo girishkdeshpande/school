@@ -38,11 +38,11 @@ def app() -> Generator[FastAPI, Any, None]:
 @pytest.fixture(scope="function")
 def db_session(app: FastAPI) -> Generator[SessionTesting, Any, None]:
     connection = engine.connect()
-    transaction = connection.begin()
+    #transaction = connection.begin()
     session = SessionTesting(bind=connection)
     yield session
-    session.close()
-    transaction.rollback()
+#    session.close()
+#    transaction.rollback()
     connection.close()
 
 

@@ -50,19 +50,19 @@ def add_new_course(data: NewCourse, db: Session = Depends(get_db)):
 
 
 # View course by course id
-@router.get("/course", response_model=CourseSchema)
-def view_course(data: SingleCourse, db: Session = Depends(get_db)):
+@router.get("/course/", response_model=CourseSchema)
+def view_course(course_id: int, db: Session = Depends(get_db)):
     try:
         # Checking course id exists or not & reverting if available
         logger.info("Checking course id exists or not")
-        course = db.query(Course).filter(and_(Course.course_id == data.course_id,
+        course = db.query(Course).filter(and_(Course.course_id == course_id,
                                               Course.course_status == True)).first()
         if course:
-            logger.info(f"{data.course_id} exists. Returning details")
+            logger.info(f"{course_id} exists. Returning details")
             return course
         else:
-            logger.error(f"Course id {data.course_id} not found")
-            return JSONResponse({"Message": f"Course id {data.course_id} does not exist", "Status": 404},
+            logger.error(f"Course id {course_id} not found")
+            return JSONResponse({"Message": f"Course id {course_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -91,23 +91,23 @@ def view_all_course(db: Session = Depends(get_db)):
 
 
 # Delete course by course id / Hard Delete
-@router.delete("/course")
-def complete_delete_course(data: SingleCourse, db: Session = Depends(get_db)):
+@router.delete("/course/")
+def complete_delete_course(course_id: int, db: Session = Depends(get_db)):
     try:
         # Checking availability of course for given course id
-        logger.info(f"Checking course id {data.course_id} exists or not")
-        course = db.query(Course).filter(Course.course_id == data.course_id).first()
+        logger.info(f"Checking course id {course_id} exists or not")
+        course = db.query(Course).filter(Course.course_id == course_id).first()
 
         # Deleting record
         if course:
             db.delete(course)
             db.commit()
-            logger.info(f"course id {data.course_id} exists. Record deleted")
+            logger.info(f"course id {course_id} exists. Record deleted")
             return JSONResponse({"Message": f"Successfully deleted Course {course.course_name}", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Course with id {data.course_id} does not exist")
-            return JSONResponse({"Message": f"Course id {data.course_id} does not exist", "Status": 404},
+            logger.error(f"Course with id {course_id} does not exist")
+            return JSONResponse({"Message": f"Course id {course_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -116,27 +116,27 @@ def complete_delete_course(data: SingleCourse, db: Session = Depends(get_db)):
 
 
 # Delete course by course id / Soft Delete
-@router.patch("/course")
-def delete_course(data: SingleCourse, db: Session = Depends(get_db)):
+@router.patch("/course/")
+def delete_course(course_id: int, db: Session = Depends(get_db)):
     try:
         # Checking availability of course for given course id
-        logger.info(f"Checking course id {data.course_id} exists or not")
+        logger.info(f"Checking course id {course_id} exists or not")
         course = db.query(Course).filter(
-            and_(Course.course_id == data.course_id, Course.course_status == True)).first()
+            and_(Course.course_id == course_id, Course.course_status == True)).first()
 
-        # Changing status to Inactive
+        # Changing status
         if course:
             course.course_status = False
             db.add(course)
             db.commit()
             db.refresh(course)
-            logger.info(f"Course id {data.course_id} exists. Status changed to Inactive")
+            logger.info(f"Course id {course_id} exists. Status changed to False")
             return JSONResponse(
                 {"Message": f"Status changed successfully for course {course.course_name}", "Status": 200},
                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Course id {data.course_id} does not exist")
-            return JSONResponse({"Message": f"Course with id {data.course_id} does not exist", "Status": 404},
+            logger.error(f"Course id {course_id} does not exist")
+            return JSONResponse({"Message": f"Course with id {course_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -146,32 +146,36 @@ def delete_course(data: SingleCourse, db: Session = Depends(get_db)):
 
 # Updating master Course
 @router.put("/course")
-def update_course(update_data: UpdateCourse, db: Session = Depends(get_db)):
+def update_course(data: UpdateCourse, db: Session = Depends(get_db)):
     try:
+        if not data.course_id or data.course_name:
+            return JSONResponse({"Message": "Please provide valid input", "Status": 422},
+                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
         # Checking availability of course for given course id
-        logger.info(f"Checking course id {update_data.course_id} exists or not")
-        course = db.query(Course).filter(and_(Course.course_id == update_data.course_id,
+        logger.info(f"Checking course id {data.course_id} exists or not")
+        course = db.query(Course).filter(and_(Course.course_id == data.course_id,
                                               Course.course_status == True)).first()
 
         # Updating record
         if course:
             logger.info("Checking course already exists or not")
-            if db.query(Course).filter(or_(Course.course_name == update_data.course_name.title(),
-                                       Course.course_name == update_data.course_name.upper())).one_or_none():
+            if db.query(Course).filter(or_(Course.course_name == data.course_name.title(),
+                                       Course.course_name == data.course_name.upper())).one_or_none():
                 logger.error("Course Name already exists")
                 return JSONResponse({"Message": "Course Name already exist", "Status": 409},
                                     status_code=status.HTTP_409_CONFLICT)
             else:
-                course.course_name = update_data.course_name.title()
+                course.course_name = data.course_name.title()
                 db.add(course)
                 db.commit()
                 db.refresh(course)
-                logger.info(f"Course id {update_data.course_id} exists. Record updated")
-                return JSONResponse({"Message": f"Record of course id {update_data.course_id} updated successfully", "Status": 200},
+                logger.info(f"Course id {data.course_id} exists. Record updated")
+                return JSONResponse({"Message": f"Record of course id {data.course_id} updated successfully", "Status": 200},
                                     status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Course id {update_data.course_id} does not exist")
-            return JSONResponse({"Message": f"Course id {update_data.course_id} does not exist", "Status": 404},
+            logger.error(f"Course id {data.course_id} does not exist")
+            return JSONResponse({"Message": f"Course id {data.course_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
