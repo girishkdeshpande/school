@@ -1,11 +1,12 @@
 # File contains apis for Student
 import logging
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import and_
 from fastapi import Depends, status, APIRouter
 from fastapi.responses import JSONResponse
 from typing import List
 
-from schemas.schema import StudentSchema, NewStudent, UpdateStudent, ShowStudent
+from schemas.schema import StudentSchema, NewStudent, UpdateStudent, ShowStudent, SingleStudent, DisenrollStudent, MigrateStudent
 from core.config import get_db, special_str
 from db.models.model import Student, CourseStudent
 
@@ -15,30 +16,28 @@ logger = logging.getLogger('school')
 
 # Enroll new student
 @router.post("/student")
-def new_student(student: NewStudent, db: Session = Depends(get_db)):
+def new_student(data: NewStudent, db: Session = Depends(get_db)):
     try:
-        student = student.model_dump()
-
         # Checking student name for special characters
         logger.info("Checking whether student name has special characters")
-        if special_str.search(student['student_name']):
+        if special_str.search(data.student_name):
             logger.error("Student name has special characters")
             return JSONResponse({"Message": "Student name field should have characters", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Checking student for unique email
         logger.info("Checking for unique email address")
-        if db.query(Student).filter(Student.student_email == student['student_email']).first():
-            logger.error(f"Email {student['student_email']} already exists")
-            return JSONResponse({"Message": f"Email address {student['student_email']} already exists", "Status": 406},
+        if db.query(Student).filter(Student.student_email == data.student_email).first():
+            logger.error(f"Email {data.student_email} already exists")
+            return JSONResponse({"Message": f"Email address {data.student_email} already exists", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Creating instance for new student
         logger.info("Creating instance of student to add in database")
         add_student = Student(
-            student_name=student['student_name'].title(),
-            student_email=student['student_email'],
-            year_enrolled=student['year_enrolled']
+            student_name=data.student_email.title(),
+            student_email=data.student_email,
+            year_enrolled=data.year_enrolled
         )
 
         # Adding new student to database
@@ -49,7 +48,7 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
 
         # Adding courses enrolled by student to database
         logger.info("Adding courses enrolled by new student into database")
-        for cors in student['course_enrolled']:
+        for cors in data.course_enrolled:
             add_course = CourseStudent(
                 student_id=add_student.student_id,
                 course_id=cors
@@ -60,7 +59,7 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
 
         logger.info("Student added successfully")
         return JSONResponse({
-            "Message": f"Student {student['student_name']} added successfully with courses {student['course_enrolled']}",
+            "Message": f"Student {data.student_name} added successfully with courses {data.course_enrolled}",
             "Status": 200}, status_code=status.HTTP_200_OK)
     except Exception as e:
         logger.error(e)
@@ -69,18 +68,18 @@ def new_student(student: NewStudent, db: Session = Depends(get_db)):
 
 
 # View student by student id
-@router.get("/student/{student_id}", response_model=ShowStudent)
-def view_student(sid: int, db: Session = Depends(get_db)):
+@router.get("/student", response_model=StudentSchema)
+def view_student(data: SingleStudent, db: Session = Depends(get_db)):
     try:
         # Checking student id exists or not
-        logger.info(f"Checking for presence of student id {sid}")
-        student = db.query(Student).filter(Student.student_id == sid).first()
+        logger.info(f"Checking for presence of student id {data.student_id}")
+        student = db.query(Student).filter(Student.student_id == data.student_id).first()
         if student:
-            logger.info(f"Student id {sid} is present.Returned student details")
+            logger.info(f"Student id {data.student_id} is present.Returned student details")
             return student
         else:
-            logger.error(f"Student id {sid} does not exist")
-            return JSONResponse({"Message": f"Student with id {sid} does not exist",
+            logger.error(f"Student id {data.student_id} does not exist")
+            return JSONResponse({"Message": f"Student with id {data.student_id} does not exist",
                                  "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -109,21 +108,21 @@ def view_all_students(db: Session = Depends(get_db)):
 
 
 # Delete Student record by student id / Hard Delete
-@router.delete("/student/{student_id}")
-def complete_delete_student(sid: int, db: Session = Depends(get_db)):
+@router.delete("/student")
+def complete_delete_student(data: SingleStudent, db: Session = Depends(get_db)):
     try:
         # Checking for availability of student & deleting if available
-        logger.info(f"Checking for presence of student id {sid}")
-        student = db.query(Student).filter(Student.student_id == sid).first()
+        logger.info(f"Checking for presence of student id {data.student_id}")
+        student = db.query(Student).filter(Student.student_id == data.student_id).first()
         if student:
             db.delete(student)
             db.commit()
-            logger.info(f"Student id {sid} is present. Record deleted")
-            return JSONResponse({"Message": f"Student id {sid} deleted successfully", "Status": 200},
+            logger.info(f"Student id {data.student_id} is present. Record deleted")
+            return JSONResponse({"Message": f"Student id {data.student_id} deleted successfully", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Student id {sid} does not exist")
-            return JSONResponse({"Message": f"Student id {sid} does not exist", "Status": 404},
+            logger.error(f"Student id {data.student_id} does not exist")
+            return JSONResponse({"Message": f"Student id {data.student_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -132,29 +131,25 @@ def complete_delete_student(sid: int, db: Session = Depends(get_db)):
 
 
 # Disenroll student from course
-@router.delete("/student/{student_id}/{course_id}")
-def disenroll_from_course(student_id: int, course_id: int, db: Session = Depends(get_db)):
+@router.delete("/student")
+def disenroll_from_course(data: DisenrollStudent, db: Session = Depends(get_db)):
     try:
-        # Checking input is not zero
-        logger.info("Checking whether input is zero or not")
-        if student_id == 0 or course_id == 0:
-            return JSONResponse({"Message": f" {student_id} {course_id} Invalid Inout", "Status": 400},
-                                status_code=status.HTTP_400_BAD_REQUEST)
+        # Checking for record with given student id & course id. Deleting if available.
+        logger.info(f"Checking for record of student id {data.student_id} against course id {data.course_id}")
+        course = db.query(CourseStudent).filter(and_(CourseStudent.student_id == data.student_id,
+                                                     CourseStudent.course_id == data.course_id)).first()
+        if course:
+            db.delete(course)
+            db.commit()
+            logger.info("Record exist.Record deleted")
+            return JSONResponse(
+                {"Message": f"Student id {data.student_id} disenrolled from course {data.course_id}",
+                 "Status": 200}, status_code=status.HTTP_200_OK)
         else:
-            # Checking for record with given student id & course id. Deleting if available.
-            logger.info(f"Checking for record of student id {student_id} against course id {course_id}")
-            course = db.query(CourseStudent).filter((CourseStudent.student_id == student_id),
-                                                    (CourseStudent.course_id == course_id)).first()
-            if course:
-                db.delete(course)
-                db.commit()
-                logger.info("Record exist.Record deleted")
-                return JSONResponse({"Message": f"Student id {student_id} disenrolled from course {course_id}",
-                                     "Status": 200}, status_code=status.HTTP_200_OK)
-            else:
-                logger.error(f"Student id {student_id} not enrolled for course {course_id}")
-                return JSONResponse({"Message": f"Student id {student_id} not enrolled for course {course_id}",
-                                     "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
+            logger.error(f"Student id {data.student_id} not enrolled for course {data.course_id}")
+            return JSONResponse(
+                {"Message": f"Student id {data.student_id} not enrolled for course {data.course_id}",
+                 "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
         return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
@@ -162,23 +157,24 @@ def disenroll_from_course(student_id: int, course_id: int, db: Session = Depends
 
 
 # Change status of student / Soft delete
-@router.patch("/student/{student_id}")
-def delete_student(sid: int, db: Session = Depends(get_db)):
+@router.patch("/student")
+def delete_student(data: SingleStudent, db: Session = Depends(get_db)):
     try:
         # Checking student id exists or not & changing status if available
-        logger.info(f"Checking for presence of student id {sid}")
-        student = db.query(Student).filter((Student.student_id == sid), (Student.student_status == "Active")).first()
+        logger.info(f"Checking for presence of student id {data.student_id}")
+        student = db.query(Student).filter(and_(Student.student_id == data.student_id,
+                                                Student.student_status == True)).first()
         if student:
-            student.student_status = "Inactive"
+            student.student_status = False
             db.add(student)
             db.commit()
             db.refresh(student)
-            logger.info(f"Student id {sid} present. Status changed")
-            return JSONResponse({"Message": f"Status of student id {sid} changed successfully", "Status": 200},
+            logger.info(f"Student id {data.student_id} present. Status changed")
+            return JSONResponse({"Message": f"Status of student id {data.student_id} changed successfully", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Student id {sid} not found")
-            return JSONResponse({"Message": f"Student id {sid} does not exist", "Status": 404},
+            logger.error(f"Student id {data.student_id} not found")
+            return JSONResponse({"Message": f"Student id {data.student_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -187,26 +183,30 @@ def delete_student(sid: int, db: Session = Depends(get_db)):
 
 
 # Update master record of student
-@router.put("/student/{student_id}", response_model=UpdateStudent)
-def update_student(student_id: int, update_data: UpdateStudent, db: Session = Depends(get_db)):
+@router.put("/student")
+def update_student(data: UpdateStudent, db: Session = Depends(get_db)):
     try:
-        update_data = update_data.model_dump()
+        # Checking input is not empty
+        if data.student_name == "":
+            return JSONResponse({"Message": "All fields are mandatory", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
         # Checking for availability of student & updating record if available
-        logger.info(f"Checking for presence of student id {student_id}")
-        student = db.query(Student).filter(Student.student_id == student_id).first()
+        logger.info(f"Checking for presence of student id {data.student_id}")
+        student = db.query(Student).filter(Student.student_id == data.student_id).first()
         if student:
-            student.student_name = update_data['student_name'].title()
-            student.student_email = update_data['student_email']
-            student.year_enrolled = update_data['year_enrolled']
+            student.student_name = data.student_name.title()
+            student.student_email = data.student_email
+            student.year_enrolled = data.year_enrolled
             db.add(student)
             db.commit()
             db.refresh(student)
-            logger.info(f"Student id {student_id} exist. Record updated")
-            return JSONResponse({"Message": f"Record of student id {student_id} updated successfully", "Status": 200},
+            logger.info(f"Student id {data.student_id} exist. Record updated")
+            return JSONResponse({"Message": f"Record of student id {data.student_id} updated successfully", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Student id {student_id} not found")
-            return JSONResponse({"Message": f"Student with id {student_id} does not exist", "Status": 404},
+            logger.error(f"Student id {data.student_id} not found")
+            return JSONResponse({"Message": f"Student with id {data.student_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -215,41 +215,35 @@ def update_student(student_id: int, update_data: UpdateStudent, db: Session = De
 
 
 # Updating course for student
-@router.put("/student/{student_id}/{from_course}/{to_course}", response_model=UpdateStudent)
-def course_migrate(student_id: int, from_course: int, to_course: int, db: Session = Depends(get_db)):
+@router.put("/student")
+def course_migrate(data: MigrateStudent, db: Session = Depends(get_db)):
     try:
-        # Checking for input for zero
-        logger.info("Checking whether input is zero or not")
-        if student_id == 0 or from_course == 0 or to_course == 0:
-            return JSONResponse({"Message": f"{student_id} {from_course} {to_course} Invalid input", "Status": 400},
-                                status_code=status.HTTP_400_BAD_REQUEST)
-        else:
-            # Checking for record of student whether he is enrolled for course from which moving
-            logger.info(f"Checking {student_id} against enrolled courses")
-            check_course = db.query(CourseStudent).filter((CourseStudent.student_id == student_id),
-                                                          (CourseStudent.course_id == from_course)).first()
-            if check_course:
-                check_course.course_id = to_course
-                # Checking whether student is already enrolled for course to which moving
-                logger.info(f"Checking student {student_id} already enrolled to course {to_course}")
-                move_course = db.query(CourseStudent).filter((CourseStudent.student_id == student_id),
-                                                             (CourseStudent.course_id == check_course.course_id)).first()
-                if move_course:
-                    logger.info(f"Student {student_id} already enrolled to {to_course}")
-                    return JSONResponse(content=f"Student {student_id} already enrolled for course {check_course.course_id}")
-                else:
-                    logger.info(f"Student {student_id} not enrolled to {to_course}")
-                    db.add(check_course)
-                    db.commit()
-                    db.refresh(check_course)
-                    logger.info(f"Updating record of student id {student_id}")
-                    return JSONResponse(
-                        {"Message": f"Student {student_id} successfully moved from course {from_course} to course {to_course}",
-                         "Status": 200}, status_code=status.HTTP_200_OK)
+        # Checking for record of student whether he is enrolled for course from which moving
+        logger.info(f"Checking {data.student_id} against enrolled courses")
+        check_course = db.query(CourseStudent).filter(and_(CourseStudent.student_id == data.student_id,
+                                                      CourseStudent.course_id == data.from_course_id)).first()
+        if check_course:
+            check_course.course_id = data.to_course_id
+            # Checking whether student is already enrolled for course to which moving
+            logger.info(f"Checking student {data.student_id} already enrolled to course {data.to_course_id}")
+            move_course = db.query(CourseStudent).filter(and_(CourseStudent.student_id == data.student_id,
+                                                         CourseStudent.course_id == check_course.course_id)).first()
+            if move_course:
+                logger.info(f"Student {data.student_id} already enrolled to {data.to_course_id}")
+                return JSONResponse(
+                    content=f"Student {data.student_id} already enrolled for course {check_course.course_id}")
             else:
-                logger.error(f"Student {student_id} is not enrolled for course {from_course}")
-                return JSONResponse({"Message": f"Student {student_id} is not enrolled for course {from_course}", "Status": 404},
-                                    status_code=status.HTTP_404_NOT_FOUND)
+                logger.info(f"Student {data.student_id} not enrolled to {data.to_course_id}")
+                db.add(check_course)
+                db.commit()
+                db.refresh(check_course)
+                logger.info(f"Updating record of student id {data.student_id}")
+                return JSONResponse({"Message": f"Student {data.student_id} successfully moved from course {data.from_course_id} to course {data.to_course_id}",
+                                    "Status": 200}, status_code=status.HTTP_200_OK)
+        else:
+            logger.error(f"Student {data.student_id} is not enrolled for course {data.from_course_id}")
+            return JSONResponse({"Message": f"Student {data.student_id} is not enrolled for course {data.from_course_id}",
+                                 "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
         return JSONResponse({"Message": "An unexpected error occurred. Please try again later",
