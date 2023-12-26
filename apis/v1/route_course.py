@@ -1,6 +1,5 @@
 # File contains apis for Course
 import logging
-import select
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
@@ -58,7 +57,7 @@ def view_course(course_id: int, db: Session = Depends(get_db)):
         course = db.query(Course).filter(and_(Course.course_id == course_id,
                                               Course.course_status == True)).first()
         if course:
-            logger.info(f"{course_id} exists. Returning details")
+            logger.info(f"Course id {course_id} exists. Returning details")
             return course
         else:
             logger.error(f"Course id {course_id} not found")
@@ -91,23 +90,23 @@ def view_all_course(db: Session = Depends(get_db)):
 
 
 # Delete course by course id / Hard Delete
-@router.delete("/course/")
-def complete_delete_course(course_id: int, db: Session = Depends(get_db)):
+@router.delete("/course")
+def complete_delete_course(data: SingleCourse, db: Session = Depends(get_db)):
     try:
         # Checking availability of course for given course id
-        logger.info(f"Checking course id {course_id} exists or not")
-        course = db.query(Course).filter(Course.course_id == course_id).first()
+        logger.info(f"Checking course id {data.course_id} exists or not")
+        course = db.query(Course).filter(Course.course_id == data.course_id).first()
 
         # Deleting record
         if course:
             db.delete(course)
             db.commit()
-            logger.info(f"course id {course_id} exists. Record deleted")
+            logger.info(f"course id {data.course_id} exists. Record deleted")
             return JSONResponse({"Message": f"Successfully deleted Course {course.course_name}", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Course with id {course_id} does not exist")
-            return JSONResponse({"Message": f"Course id {course_id} does not exist", "Status": 404},
+            logger.error(f"Course with id {data.course_id} does not exist")
+            return JSONResponse({"Message": f"Course id {data.course_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -148,10 +147,6 @@ def delete_course(course_id: int, db: Session = Depends(get_db)):
 @router.put("/course")
 def update_course(data: UpdateCourse, db: Session = Depends(get_db)):
     try:
-        if not data.course_id or data.course_name:
-            return JSONResponse({"Message": "Please provide valid input", "Status": 422},
-                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
-
         # Checking availability of course for given course id
         logger.info(f"Checking course id {data.course_id} exists or not")
         course = db.query(Course).filter(and_(Course.course_id == data.course_id,

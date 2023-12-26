@@ -35,7 +35,7 @@ def new_student(data: NewStudent, db: Session = Depends(get_db)):
         # Creating instance for new student
         logger.info("Creating instance of student to add in database")
         add_student = Student(
-            student_name=data.student_email.title(),
+            student_name=data.student_name.title(),
             student_email=data.student_email,
             year_enrolled=data.year_enrolled
         )
@@ -70,18 +70,18 @@ def new_student(data: NewStudent, db: Session = Depends(get_db)):
 
 
 # View student by student id
-@router.get("/student", response_model=StudentSchema)
-def view_student(data: SingleStudent, db: Session = Depends(get_db)):
+@router.get("/student/", response_model=StudentSchema)
+def view_student(student_id: int, db: Session = Depends(get_db)):
     try:
         # Checking student id exists or not
-        logger.info(f"Checking for presence of student id {data.student_id}")
-        student = db.query(Student).filter(Student.student_id == data.student_id).first()
+        logger.info(f"Checking for presence of student id {student_id}")
+        student = db.query(Student).filter(Student.student_id == student_id).first()
         if student:
-            logger.info(f"Student id {data.student_id} is present.Returned student details")
+            logger.info(f"Student id {student_id} is present.Returned student details")
             return student
         else:
-            logger.error(f"Student id {data.student_id} does not exist")
-            return JSONResponse({"Message": f"Student with id {data.student_id} does not exist",
+            logger.error(f"Student id {student_id} does not exist")
+            return JSONResponse({"Message": f"Student with id {student_id} does not exist",
                                  "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -110,21 +110,21 @@ def view_all_students(db: Session = Depends(get_db)):
 
 
 # Delete Student record by student id / Hard Delete
-@router.delete("/student/")
-def complete_delete_student(student_id: int, db: Session = Depends(get_db)):
+@router.delete("/student")
+def complete_delete_student(data: SingleStudent, db: Session = Depends(get_db)):
     try:
         # Checking for availability of student & deleting if available
-        logger.info(f"Checking for presence of student id {student_id}")
-        student = db.query(Student).filter(Student.student_id == student_id).first()
+        logger.info(f"Checking for presence of student id {data.student_id}")
+        student = db.query(Student).filter(Student.student_id == data.student_id).first()
         if student:
             db.delete(student)
             db.commit()
-            logger.info(f"Student id {student_id} is present. Record deleted")
-            return JSONResponse({"Message": f"Student id {student_id} deleted successfully", "Status": 200},
+            logger.info(f"Student id {data.student_id} is present. Record deleted")
+            return JSONResponse({"Message": f"Student id {data.student_id} deleted successfully", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Student id {student_id} does not exist")
-            return JSONResponse({"Message": f"Student id {student_id} does not exist", "Status": 404},
+            logger.error(f"Student id {data.student_id} does not exist")
+            return JSONResponse({"Message": f"Student id {data.student_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -133,24 +133,24 @@ def complete_delete_student(student_id: int, db: Session = Depends(get_db)):
 
 
 # Disenroll student from course
-@router.delete("/student/")
-def disenroll_from_course(student_id: int, course_id: int, db: Session = Depends(get_db)):
+@router.delete("/student")
+def disenroll_from_course(data: DisenrollStudent, db: Session = Depends(get_db)):
     try:
         # Checking for record with given student id & course id. Deleting if available.
-        logger.info(f"Checking for record of student id {student_id} against course id {course_id}")
-        course = db.query(CourseStudent).filter(and_(CourseStudent.student_id == student_id,
-                                                     CourseStudent.course_id == course_id)).first()
+        logger.info(f"Checking for record of student id {data.student_id} against course id {data.course_id}")
+        course = db.query(CourseStudent).filter(and_(CourseStudent.student_id == data.student_id,
+                                                     CourseStudent.course_id == data.course_id)).first()
         if course:
             db.delete(course)
             db.commit()
             logger.info("Record exist.Record deleted")
             return JSONResponse(
-                {"Message": f"Student id {student_id} disenrolled from course {course_id}",
+                {"Message": f"Student id {data.student_id} disenrolled from course {data.course_id}",
                  "Status": 200}, status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Student id {student_id} not enrolled for course {course_id}")
+            logger.error(f"Student id {data.student_id} not enrolled for course {data.course_id}")
             return JSONResponse(
-                {"Message": f"Student id {student_id} not enrolled for course {course_id}",
+                {"Message": f"Student id {data.student_id} not enrolled for course {data.course_id}",
                  "Status": 404}, status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -192,6 +192,17 @@ def update_student(data: UpdateStudent, db: Session = Depends(get_db)):
         if data.student_name == "":
             return JSONResponse({"Message": "All fields are mandatory", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
+        if special_str.search(data.student_name):
+            logger.error("Student name has special characters")
+            return JSONResponse({"Message": "Student name field should have characters", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+        # Checking student for unique email
+        logger.info("Checking for unique email address")
+        if db.query(Student).filter(Student.student_email == data.student_email).first():
+            logger.error(f"Email {data.student_email} already exists")
+            return JSONResponse({"Message": f"Email address {data.student_email} already exists", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Checking for availability of student & updating record if available
         logger.info(f"Checking for presence of student id {data.student_id}")
@@ -217,7 +228,7 @@ def update_student(data: UpdateStudent, db: Session = Depends(get_db)):
 
 
 # Updating course for student
-@router.put("/student")
+@router.put("/student", response_model=MigrateStudent)
 def course_migrate(data: MigrateStudent, db: Session = Depends(get_db)):
     try:
         # Checking for record of student whether he is enrolled for course from which moving

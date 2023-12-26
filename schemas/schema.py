@@ -7,11 +7,11 @@ from typing import Optional, List, Union, Any
 
 
 class NewCourse(BaseModel):
-    course_name: str = Field(min_length=2)
+    course_name: str = Field(..., min_length=2)
 
 
 class ShowCourse(BaseModel):
-    course_id: int
+    course_id: PositiveInt
     course_name: str
     course_status: bool
 
@@ -21,7 +21,7 @@ class ShowCourse(BaseModel):
 
 class UpdateCourse(BaseModel):
     course_id: PositiveInt = Field(..., gt=0)
-    course_name: str = Field(..., min_length=2, pattern="^[a-zA-Z0-9-' ]+$")
+    course_name: str = Field(..., min_length=2)
 
 
 class SingleCourse(BaseModel):
@@ -29,15 +29,15 @@ class SingleCourse(BaseModel):
 
 
 class NewStudent(BaseModel):
-    student_name: str = Field(min_length=3)
+    student_name: str = Field(...,min_length=3)
     student_email: EmailStr
     year_enrolled: datetime.date
     course_enrolled: list = []
 
 
 class ShowStudent(BaseModel):
-    student_id: int
-    student_name: str
+    student_id: PositiveInt
+    student_name: str = Field(...,min_length=3)
     student_email: EmailStr
     year_enrolled: datetime.date
 
@@ -46,36 +46,36 @@ class ShowStudent(BaseModel):
 
 
 class UpdateStudent(BaseModel):
-    student_id: int = Field(gt=0)
+    student_id: PositiveInt = Field(..., gt=0)
     student_name: Optional[str] = None
     student_email: Optional[EmailStr] = None
     year_enrolled: Optional[datetime.date] = None
 
 
 class SingleStudent(BaseModel):
-    student_id: int = Field(gt=0)
+    student_id: PositiveInt = Field(..., gt=0)
 
 
 class DisenrollStudent(BaseModel):
-    student_id: int = Field(gt=0)
-    course_id: int = Field(gt=0)
+    student_id: PositiveInt = Field(..., gt=0)
+    course_id: PositiveInt = Field(..., gt=0)
 
 
 class MigrateStudent(BaseModel):
-    student_id: int = Field(gt=0)
-    from_course_id: int = Field(gt=0)
-    to_course_id: int = Field(gt=0)
+    student_id: PositiveInt = Field(..., gt=0)
+    from_course_id: PositiveInt = Field(..., gt=0)
+    to_course_id: PositiveInt = Field(..., gt=0)
 
 
 class NewTeacher(BaseModel):
-    teacher_name: str = Field(min_length=3)
+    teacher_name: str = Field(..., min_length=3)
     teacher_email: EmailStr
     assign_course: list = []
 
 
 class ShowTeacher(BaseModel):
-    teacher_id: int
-    teacher_name: str = Field(min_length=3)
+    teacher_id: PositiveInt
+    teacher_name: str = Field(..., min_length=3)
     teacher_email: EmailStr
 
     class ConfigDict:
@@ -83,18 +83,18 @@ class ShowTeacher(BaseModel):
 
 
 class UpdateTeacher(BaseModel):
-    teacher_id: int = Field(gt=0)
+    teacher_id: PositiveInt = Field(..., gt=0)
     teacher_name: Optional[str] = None
     teacher_email: Optional[EmailStr] = None
 
 
 class SingleTeacher(BaseModel):
-    teacher_id: int = Field(gt=0)
+    teacher_id: PositiveInt = Field(..., gt=0)
 
 
 class DisassignTeacher(BaseModel):
-    teacher_id: int = Field(gt=0)
-    course_id: int = Field(gt=0)
+    teacher_id: PositiveInt = Field(..., gt=0)
+    course_id: PositiveInt = Field(..., gt=0)
 
 
 class TeacherSchema(ShowTeacher):

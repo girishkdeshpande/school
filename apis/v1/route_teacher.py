@@ -63,22 +63,22 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
 
 
 # View teacher details by teacher id
-@router.get("/teacher", response_model=TeacherSchema)
-def view_teacher(data: SingleTeacher, db: Session = Depends(get_db)):
+@router.get("/teacher/", response_model=TeacherSchema)
+def view_teacher(teacher_id: int, db: Session = Depends(get_db)):
     try:
         # Checking for teacher exists or not
-        logger.info(f"Checking for presence of teacher id {data.teacher_id}")
-        single_teacher = db.query(Teacher).filter(Teacher.teacher_id == data.teacher_id).first()
+        logger.info(f"Checking for presence of teacher id {teacher_id}")
+        single_teacher = db.query(Teacher).filter(Teacher.teacher_id == teacher_id).first()
         if single_teacher:
-            logger.info(f"Teacher id {data.teacher_id} is present.Returned teacher details")
+            logger.info(f"Teacher id {teacher_id} is present.Returned teacher details")
             return single_teacher
         else:
-            logger.error(f"Teacher id {data.teacher_id} does not exist")
-            return JSONResponse({"Message": f"Teacher id {data.teacher_id} does not exist", "Status": 404},
+            logger.error(f"Teacher id {teacher_id} does not exist")
+            return JSONResponse({"Message": f"Teacher id {teacher_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
-        return JSONResponse({"Message": f"An unexpected error {e} occurred. Please try again later", "Status": 500},
+        return JSONResponse({"Message": f"An unexpected error occurred. Please try again later", "Status": 500},
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -150,24 +150,24 @@ def disassign_teacher(data: DisassignTeacher, db: Session = Depends(get_db)):
 
 
 # Change status of teacher
-@router.patch("/teacher")
-def delete_teacher(data: SingleTeacher, db: Session = Depends(get_db)):
+@router.patch("/teacher/")
+def delete_teacher(teacher_id: int, db: Session = Depends(get_db)):
     try:
         # Checking for teacher exists & changing status if exists
-        logger.info(f"Checking for presence of teacher id {data.teacher_id}")
-        teacher = db.query(Teacher).filter(and_(Teacher.teacher_id == data.teacher_id,
+        logger.info(f"Checking for presence of teacher id {teacher_id}")
+        teacher = db.query(Teacher).filter(and_(Teacher.teacher_id == teacher_id,
                                            Teacher.teacher_status == True)).first()
         if teacher:
             teacher.teacher_status = False
             db.add(teacher)
             db.commit()
             db.refresh(teacher)
-            logger.info(f"Teacher id {data.teacher_id} present. Status changed")
-            return JSONResponse({"Message": f"Status of teacher id {data.teacher_id} changed successfully", "Status": 200},
+            logger.info(f"Teacher id {teacher_id} present. Status changed")
+            return JSONResponse({"Message": f"Status of teacher id {teacher_id} changed successfully", "Status": 200},
                                 status_code=status.HTTP_200_OK)
         else:
-            logger.error(f"Teacher id {data.teacher_id} not found")
-            return JSONResponse({"Message": f"Teacher with id {data.teacher_id} does not exist", "Status": 404},
+            logger.error(f"Teacher id {teacher_id} not found")
+            return JSONResponse({"Message": f"Teacher with id {teacher_id} does not exist", "Status": 404},
                                 status_code=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(e)
@@ -181,6 +181,18 @@ def update_teacher(data: UpdateTeacher, db: Session = Depends(get_db)):
     try:
         if data.teacher_name == "":
             return JSONResponse({"Message": "All fields are mandatory", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+        logger.info("Checking whether teacher name has special characters")
+        if special_str.search(data.teacher_name):
+            return JSONResponse({"Message": "Teacher name field should have characters", "Status": 406},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+        # Checking teacher for unique email
+        logger.info("Checking for unique email address")
+        if db.query(Teacher).filter(Teacher.teacher_email == data.teacher_email).first():
+            logger.error(f"Email id already exists")
+            return JSONResponse({"Message": f"Email {data.teacher_email} already exists", "Status": 406},
                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 
         # Checking for teacher exists & updating record if available
