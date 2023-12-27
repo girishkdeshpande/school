@@ -47,9 +47,9 @@ class ShowStudent(BaseModel):
 
 class UpdateStudent(BaseModel):
     student_id: PositiveInt = Field(..., gt=0)
-    student_name: Optional[str] = None
-    student_email: Optional[EmailStr] = None
-    year_enrolled: Optional[datetime.date] = None
+    student_name: str
+    student_email: EmailStr
+    year_enrolled: datetime.date
 
 
 class SingleStudent(BaseModel):
@@ -84,8 +84,8 @@ class ShowTeacher(BaseModel):
 
 class UpdateTeacher(BaseModel):
     teacher_id: PositiveInt = Field(..., gt=0)
-    teacher_name: Optional[str] = None
-    teacher_email: Optional[EmailStr] = None
+    teacher_name: str
+    teacher_email: EmailStr
 
 
 class SingleTeacher(BaseModel):

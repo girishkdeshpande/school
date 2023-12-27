@@ -188,29 +188,31 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
 @router.put("/student")
 def update_student(data: UpdateStudent, db: Session = Depends(get_db)):
     try:
-        # Checking input is not empty
-        if data.student_name == "":
-            return JSONResponse({"Message": "All fields are mandatory", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-        if special_str.search(data.student_name):
-            logger.error("Student name has special characters")
-            return JSONResponse({"Message": "Student name field should have characters", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-
-        # Checking student for unique email
-        logger.info("Checking for unique email address")
-        if db.query(Student).filter(Student.student_email == data.student_email).first():
-            logger.error(f"Email {data.student_email} already exists")
-            return JSONResponse({"Message": f"Email address {data.student_email} already exists", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-
         # Checking for availability of student & updating record if available
         logger.info(f"Checking for presence of student id {data.student_id}")
         student = db.query(Student).filter(Student.student_id == data.student_id).first()
         if student:
-            student.student_name = data.student_name.title()
-            student.student_email = data.student_email
-            student.year_enrolled = data.year_enrolled
+            # Checking for special characters
+            if special_str.search(data.student_name):
+                logger.error("Student name has special characters")
+                return JSONResponse({"Message": "Student name field should have characters", "Status": 406},
+                                    status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+            # Checking input is not empty
+            elif data.student_name == "":
+                student.student_name = student.student_name
+            else:
+                student.student_name = data.student_name.title()
+
+            # Checking student for unique email
+            logger.info("Checking for unique email address")
+            if db.query(Student).filter(Student.student_email == data.student_email).first():
+                logger.error(f"Email {data.student_email} already exists")
+                return JSONResponse({"Message": f"Email address {data.student_email} already exists", "Status": 406},
+                                    status_code=status.HTTP_406_NOT_ACCEPTABLE)
+            else:
+                student.student_email = data.student_email
+
             db.add(student)
             db.commit()
             db.refresh(student)

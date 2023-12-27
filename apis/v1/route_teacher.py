@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import and_
 from schemas.schema import NewTeacher, TeacherSchema, UpdateTeacher, SingleTeacher, DisassignTeacher
 from core.config import get_db, special_str
-from db.models.model import Teacher, CourseTeacher
+from db.models.model import Teacher, CourseTeacher, Course
 
 router = APIRouter()
 logger = logging.getLogger('school')
@@ -45,13 +45,17 @@ def new_teacher(teacher: NewTeacher, db: Session = Depends(get_db)):
         # Adding courses which teacher teaches
         logger.info("Adding courses assigned to new teacher into database")
         for course in teacher.assign_course:
-            add_course = CourseTeacher(
-                teacher_id=add_teacher.teacher_id,
-                course_id=course
-            )
-            db.add(add_course)
-            db.commit()
-            db.refresh(add_course)
+            if db.query(Course).filter(Course.course_id == course).first():
+                add_course = CourseTeacher(
+                    teacher_id=add_teacher.teacher_id,
+                    course_id=course
+                )
+                db.add(add_course)
+                db.commit()
+                db.refresh(add_course)
+            else:
+                return JSONResponse({"Message": f"Course id {course} not found", "Status": 404},
+                                    status_code=status.HTTP_404_NOT_FOUND)
 
         logger.info(f"Teacher {teacher.teacher_name} added successfully with course(s) {teacher.assign_course}")
         return JSONResponse({"Message": f"Teacher {teacher.teacher_name} added successfully for courses {teacher.assign_course}",
@@ -179,28 +183,29 @@ def delete_teacher(teacher_id: int, db: Session = Depends(get_db)):
 @router.put("/teacher", response_model=UpdateTeacher)
 def update_teacher(data: UpdateTeacher, db: Session = Depends(get_db)):
     try:
-        if data.teacher_name == "":
-            return JSONResponse({"Message": "All fields are mandatory", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-
-        logger.info("Checking whether teacher name has special characters")
-        if special_str.search(data.teacher_name):
-            return JSONResponse({"Message": "Teacher name field should have characters", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-
-        # Checking teacher for unique email
-        logger.info("Checking for unique email address")
-        if db.query(Teacher).filter(Teacher.teacher_email == data.teacher_email).first():
-            logger.error(f"Email id already exists")
-            return JSONResponse({"Message": f"Email {data.teacher_email} already exists", "Status": 406},
-                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
-
         # Checking for teacher exists & updating record if available
         logger.info(f"Checking for presence of teacher id {data.teacher_id}")
         teacher = db.query(Teacher).filter(Teacher.teacher_id == data.teacher_id).first()
         if teacher:
-            teacher.teacher_name = data.teacher_name.title()
-            teacher.teacher_email = data.teacher_email
+            logger.info("Checking whether teacher name has special characters")
+            if special_str.search(data.teacher_name):
+                return JSONResponse({"Message": "Teacher name field should have characters", "Status": 406},
+                                    status_code=status.HTTP_406_NOT_ACCEPTABLE)
+
+            elif data.teacher_name == "":
+                teacher.teacher_name = teacher.teacher_name
+            else:
+                teacher.teacher_name = data.teacher_name.title()
+
+            # Checking teacher for unique email
+            logger.info("Checking for unique email address")
+            if db.query(Teacher).filter(Teacher.teacher_email == data.teacher_email).first():
+                logger.error(f"Email id already exists")
+                return JSONResponse({"Message": f"Email {data.teacher_email} already exists", "Status": 406},
+                                    status_code=status.HTTP_406_NOT_ACCEPTABLE)
+            else:
+                teacher.teacher_email = data.teacher_email
+
             db.add(teacher)
             db.commit()
             db.refresh(teacher)
